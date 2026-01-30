@@ -75,4 +75,7 @@ func main() {
 	// --- AA ---
 	fmt.Print("\033[35m" + aa + "\033[0m")
 	fmt.Println()
+	fmt.Println("\nPress Enter to exit...")
+	_, _ = fmt.Scanln()
+
 }
