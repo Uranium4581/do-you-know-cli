@@ -1,64 +1,78 @@
 package main
 
 import (
+	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 )
 
+//go:embed AA.txt
+var aa string
+
 type KnowledgeBase struct {
-	Content    string `json:"content"`
-	Known      int    `json:"known"`
-	Unknown    int    `json:"unknown"`
-	Created_at string `json:"created_at"`
-	Id         string `json:"id"`
+	Content   string `json:"content"`
+	Known     int    `json:"known"`
+	Unknown   int    `json:"unknown"`
+	CreatedAt string `json:"created_at"`
+	ID        string `json:"id"`
 }
 
 func main() {
-	aa, err := os.ReadFile("AA.txt")
-	url := fmt.Sprintf("https://do-you-know.moromen.com/api/knowledge")
-	resp, err := http.Get(url)
+	// --- HTTP with timeout ---
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		"https://do-you-know.moromen.com/api/knowledge",
+		nil,
+	)
 	if err != nil {
-		fmt.Println("Error fetching data:", err)
+		fmt.Println("request生成エラー:", err)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println("HTTPエラー:", err)
 		return
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body) // := (コロンが先)
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("Bad status:", resp.Status)
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
+		fmt.Println("body読み込みエラー:", err)
 		return
 	}
 
 	var knowledge KnowledgeBase
-	err = json.Unmarshal(body, &knowledge)
-	if err != nil {
-		fmt.Println("Error unmarshaling JSON:", err)
+	if err := json.Unmarshal(body, &knowledge); err != nil {
+		fmt.Println("JSONデコードエラー:", err)
 		return
 	}
-	// fmt.Println("Did you know?:", knowledge.Content)
-	// fmt.Println("Known:", knowledge.Known)
-	// fmt.Println("Unknown:", knowledge.Unknown)
-	// fmt.Println("Created at:", knowledge.Created_at)
-	// fmt.Println("ID:", knowledge.Id)
 
-	// カタカタ
-	fmt.Println("ID:[" + knowledge.Id + "]")
-	for _, char := range knowledge.Content {
-		fmt.Print(string(char))
-		time.Sleep(250 * time.Millisecond)
+	// --- 表示 ---
+	fmt.Println("ID:[" + knowledge.ID + "]")
+
+	for _, r := range knowledge.Content {
+		fmt.Print(string(r))
+		time.Sleep(120 * time.Millisecond)
 	}
 	fmt.Println()
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(400 * time.Millisecond)
 
-	if err != nil {
-		fmt.Println("AAアート読み込みエラー:", err)
-	} else {
-		fmt.Print("\033[35m" + string(aa) + "\033[0m")
-	}
+	// --- AA ---
+	fmt.Print("\033[35m" + aa + "\033[0m")
 	fmt.Println()
 }
